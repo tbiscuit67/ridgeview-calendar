@@ -102,73 +102,136 @@
 
         // Initialize Administrator Interactive Calendar Grid
         async function initAdminCalendar() {
-            const calendarEl = document.getElementById('calendar');
-            calendarEl.innerHTML = ''; // Reset UI view
-            
-            try {
-                const querySnapshot = await getDocs(collection(db, "meetings"));
-                const events = [];
-                
-                querySnapshot.forEach((doc) => {
-                    const data = doc.data();
+    const calendarEl = document.getElementById('calendar');
+    calendarEl.innerHTML = ''; 
+    
+    try {
+        const querySnapshot = await getDocs(collection(db, "meetings"));
+        const claimedShifts = {};
+        
+        querySnapshot.forEach((doc) => {
+            const data = doc.data();
+            const key = `${data.date}_${data.time}_${data.meetingName}`;
+            claimedShifts[key] = { id: doc.id, chairName: data.chairName };
+        });
+
+        const generateAdminTemplateEvents = (fetchInfo, successCallback, failureCallback) => {
+            const events = [];
+            let start = new Date(fetchInfo.start);
+            let end = new Date(fetchInfo.end);
+
+            while (start < end) {
+                const year = start.getFullYear();
+                const month = String(start.getMonth() + 1).padStart(2, '0');
+                const dayStr = String(start.getDate()).padStart(2, '0');
+                const dateIso = `${year}-${month}-${dayStr}`;
+                const dayOfWeek = start.getDay();
+                let isFirstFriday = (dayOfWeek === 5 && start.getDate() <= 7);
+
+                const daySlots = [];
+                if (dayOfWeek !== 4) daySlots.push({ time: "18:30", name: "Detox" });
+                if (dayOfWeek === 3) daySlots.push({ time: "19:00", name: "Recovery" });
+                if (dayOfWeek === 6) {
+                    daySlots.push({ time: "18:00", name: "Men's Mtg" });
+                    daySlots.push({ time: "18:00", name: "Women's Mtg" });
+                }
+                if (isFirstFriday) {
+                    daySlots.push({ time: "19:00", name: "FF Chair" });
+                    daySlots.push({ time: "19:00", name: "FF Sp" });
+                }
+
+                daySlots.forEach(slot => {
+                    const key = `${dateIso}_${slot.time}_${slot.name}`;
+                    const claimed = claimedShifts[key];
+                    
                     events.push({
-                        id: doc.id,
-                        title: `👤 ${data.chairName}`,
-                        start: `${data.date}T${data.time}`,
-                        backgroundColor: '#27ae60'
+                        id: claimed ? claimed.id : `template_${key}`,
+                        title: claimed ? `👤 ${slot.name}: ${claimed.chairName}` : `⬜ ${slot.name}: (Blank)`,
+                        start: `${dateIso}T${slot.time}`,
+                        backgroundColor: claimed ? '#27ae60' : '#95a5a6',
+                        extendedProps: {
+                            isTemplate: !claimed,
+                            meetingName: slot.name,
+                            dateStr: dateIso,
+                            timeStr: slot.time
+                        }
                     });
                 });
+                start.setDate(start.getDate() + 1);
+            }
+            successCallback(events);
+        };
 
-                calendar = new FullCalendar.Calendar(calendarEl, {
-                    initialView: 'dayGridMonth',
-                    headerToolbar: {
-                        left: 'prev,next today',
-                        center: 'title',
-                        right: 'dayGridMonth,timeGridWeek'
-                    },
-                    events: events,
-                    selectable: true,
-                    
-                    // Add Event Click Handler
-                    dateClick: async (info) => {
-                        const name = prompt("Enter Volunteer Chair Name:");
-                        if (!name) return;
-                        
-                        const time = prompt("Enter Meeting Start Time (24hr format HH:MM, e.g., 19:30):", "19:00");
-                        if (!time) return;
+        calendar = new FullCalendar.Calendar(calendarEl, {
+            initialView: 'dayGridMonth',
+            headerToolbar: {
+                left: 'prev,next today',
+                center: 'title',
+                right: 'dayGridMonth,timeGridWeek'
+            },
+            events: generateAdminTemplateEvents,
+            
+            // Handle clicking directly on specific items
+            eventClick: async (info) => {
+                const props = info.event.extendedProps;
 
+                // Sign-up flow for Blank Slots
+                if (props.isTemplate) {
+                    const volunteerName = prompt(`Sign up a volunteer chair for ${props.meetingName} at ${props.timeStr}? \n\nEnter Volunteer Name:`);
+                    if (!volunteerName) return;
+
+                    try {
+                        await addDoc(collection(db, "meetings"), {
+                            date: props.dateStr,
+                            time: props.timeStr,
+                            meetingName: props.meetingName,
+                            chairName: volunteerName,
+                            updatedBy: auth.currentUser.uid
+                        });
+                        alert("Volunteer successfully assigned!");
+                        initAdminCalendar(); // Live UI reload
+                    } catch (err) {
+                        alert("Error updating shift database: " + err.message);
+                    }
+                } 
+                // Removal flow for Claimed Slots
+                else {
+                    if (confirm(`Remove volunteer from this ${props.meetingName} shift?`)) {
                         try {
-                            await addDoc(collection(db, "meetings"), {
-                                date: info.dateStr,
-                                time: time,
-                                chairName: name,
-                                updatedBy: auth.currentUser.uid
-                            });
-                            alert("Shift added!");
-                            initAdminCalendar(); // Reload grid layout
+                            await deleteDoc(doc(db, "meetings", info.event.id));
+                            alert("Shift cleared back to blank.");
+                            initAdminCalendar();
                         } catch (err) {
-                            alert("Error adding entry: " + err.message);
-                        }
-                    },
-
-                    // Remove Event Click Handler
-                    eventClick: async (info) => {
-                        if (confirm(`Are you sure you want to completely remove ${info.event.title}?`)) {
-                            try {
-                                await deleteDoc(doc(db, "meetings", info.event.id));
-                                info.event.remove();
-                                alert("Shift deleted.");
-                            } catch (err) {
-                                alert("Error deleting entry: " + err.message);
-                            }
+                            alert("Error removing entry: " + err.message);
                         }
                     }
-                });
-                calendar.render();
-            } catch (err) {
-                console.error("Firestore Loading Error:", err);
+                }
+            },
+            dayCellDidMount: (info) => {
+                const cellDate = info.date;
+                if (cellDate.getDay() === 5 && cellDate.getDate() <= 7) {
+                    const textMarker = document.createElement('div');
+                    textMarker.innerText = 'FIRST FRIDAY';
+                    textMarker.style.color = '#e74c3c';
+                    textMarker.style.fontSize = '10px';
+                    textMarker.style.fontWeight = 'bold';
+                    textMarker.style.paddingLeft = '5px';
+                    textMarker.style.paddingTop = '2px';
+                    textMarker.style.float = 'left';
+                    const topFrame = info.el.querySelector('.fc-daygrid-day-top');
+                    if (topFrame) {
+                        topFrame.insertBefore(textMarker, topFrame.firstChild);
+                        topFrame.style.flexDirection = 'row';
+                        topFrame.style.justifyContent = 'space-between';
+                    }
+                }
             }
-        }
+        });
+        calendar.render();
+    } catch (err) {
+        console.error("Dashboard Setup Error:", err);
+    }
+}
     </script>
 </body>
 </html>
