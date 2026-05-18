@@ -135,9 +135,12 @@
         };
 
         // 3. Initialize your updated layout
-        const calendar = new FullCalendar.Calendar(calendarEl, {
+       const calendar = new FullCalendar.Calendar(calendarEl, {
             initialView: 'dayGridMonth',
-            headerToolbar: {
+            displayEventTime: false, // Hides the 6:30PM text
+            eventDisplay: 'block',    // Removes the dot/square icon
+            dayMaxEvents: true,       // Prevents day cells from getting too tall
+            headerToolbar: {               
                 left: 'prev,next today',
                 center: 'title',
                 right: 'dayGridMonth,timeGridWeek'
