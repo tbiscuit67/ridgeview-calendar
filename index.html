@@ -49,47 +49,137 @@
         const db = getFirestore(app);
         const analytics = getAnalytics(app);
 
-        document.addEventListener('DOMContentLoaded', async () => {
-            const calendarEl = document.getElementById('calendar');
-            
-            try {
-                // Fetch volunteer shifts from Firestore
-                const querySnapshot = await getDocs(collection(db, "meetings"));
-                const events = [];
+       document.addEventListener('DOMContentLoaded', async () => {
+    const calendarEl = document.getElementById('calendar');
+    
+    try {
+        // 1. Fetch any claimed shifts from your database
+        const querySnapshot = await getDocs(collection(db, "meetings"));
+        const claimedShifts = {};
+        
+        querySnapshot.forEach((doc) => {
+            const data = doc.data();
+            // Create a unique lookup key combining date, time, and meeting type
+            const key = `${data.date}_${data.time}_${data.meetingName}`;
+            claimedShifts[key] = { id: doc.id, chairName: data.chairName };
+        });
+
+        // 2. This helper function generates our recurring schedule logic dynamically
+        const generateTemplateEvents = (fetchInfo, successCallback, failureCallback) => {
+            const events = [];
+            let start = new Date(fetchInfo.start);
+            let end = new Date(fetchInfo.end);
+
+            // Loop through every day currently showing on the screen
+            while (start < end) {
+                const year = start.getFullYear();
+                const month = String(start.getMonth() + 1).padStart(2, '0');
+                const dayStr = String(start.getDate()).padStart(2, '0');
+                const dateIso = `${year}-${month}-${dayStr}`;
                 
-                querySnapshot.forEach((doc) => {
-                    const data = doc.data();
-                    // Merge date and time into an ISO format string
-                    const startTimestamp = `${data.date}T${data.time}`;
+                const dayOfWeek = start.getDay(); // 0 = Sunday, 3 = Wednesday, 4 = Thursday, 5 = Friday, 6 = Saturday
+
+                // Target the first Friday of the month
+                let isFirstFriday = false;
+                if (dayOfWeek === 5 && start.getDate() <= 7) {
+                    isFirstFriday = true;
+                }
+
+                // Temporary list to build the slots for this specific day
+                const daySlots = [];
+
+                // Rule A: 6:30 PM Detox every day except Thursday
+                if (dayOfWeek !== 4) {
+                    daySlots.push({ time: "18:30", name: "Detox" });
+                }
+
+                // Rule B: 7:00 PM Recovery on Wednesdays
+                if (dayOfWeek === 3) {
+                    daySlots.push({ time: "19:00", name: "Recovery" });
+                }
+
+                // Rule C: 6:00 PM Men's & Women's Meetings on Saturdays
+                if (dayOfWeek === 6) {
+                    daySlots.push({ time: "18:00", name: "Men's Mtg" });
+                    daySlots.push({ time: "18:00", name: "Women's Mtg" });
+                }
+
+                // Rule D: First Friday Slots (FF Chair & FF Sp)
+                if (isFirstFriday) {
+                    daySlots.push({ time: "19:00", name: "FF Chair" }); // default placeholder time
+                    daySlots.push({ time: "19:00", name: "FF Sp" });
+                }
+
+                // Check our database records against our empty layout rules
+                daySlots.forEach(slot => {
+                    const key = `${dateIso}_${slot.time}_${slot.name}`;
+                    const claimed = claimedShifts[key];
+                    
                     events.push({
-                        id: doc.id,
-                        title: `👤 ${data.chairName}`,
-                        start: startTimestamp,
-                        backgroundColor: '#2e7d32', // Emerald green style
-                        extendedProps: { time: data.time }
+                        id: claimed ? claimed.id : `template_${key}`,
+                        title: claimed ? `👤 ${slot.name}: ${claimed.chairName}` : `⬜ ${slot.name}: (Blank)`,
+                        start: `${dateIso}T${slot.time}`,
+                        backgroundColor: claimed ? '#2e7d32' : '#7f8c8d', // Green if filled, clean slate grey if empty
+                        extendedProps: {
+                            isTemplate: !claimed,
+                            meetingName: slot.name,
+                            dateStr: dateIso,
+                            timeStr: slot.time
+                        }
                     });
                 });
 
-                const calendar = new FullCalendar.Calendar(calendarEl, {
-                    initialView: 'dayGridMonth',
-                    headerToolbar: {
-                        left: 'prev,next today',
-                        center: 'title',
-                        right: 'dayGridMonth,timeGridWeek'
-                    },
-                    events: events,
-                    eventTimeFormat: { 
-                        hour: 'numeric',
-                        minute: '2-digit',
-                        meridiem: 'short'
+                start.setDate(start.getDate() + 1);
+            }
+            successCallback(events);
+        };
+
+        // 3. Initialize your updated layout
+        const calendar = new FullCalendar.Calendar(calendarEl, {
+            initialView: 'dayGridMonth',
+            headerToolbar: {
+                left: 'prev,next today',
+                center: 'title',
+                right: 'dayGridMonth,timeGridWeek'
+            },
+            events: generateTemplateEvents, // Feed our dynamic layout builder here
+            eventTimeFormat: { 
+                hour: 'numeric',
+                minute: '2-digit',
+                meridiem: 'short'
+            },
+            
+            // Rule E: Style your "FIRST FRIDAY" red header tag natively inside the box cell
+            dayCellDidMount: (info) => {
+                const cellDate = info.date;
+                if (cellDate.getDay() === 5 && cellDate.getDate() <= 7) {
+                    // Create a small red text element layout
+                    const textMarker = document.createElement('div');
+                    textMarker.innerText = 'FIRST FRIDAY';
+                    textMarker.style.color = '#e74c3c';
+                    textMarker.style.fontSize = '10px';
+                    textMarker.style.fontWeight = 'bold';
+                    textMarker.style.paddingLeft = '5px';
+                    textMarker.style.paddingTop = '2px';
+                    textMarker.style.float = 'left';
+                    
+                    // Insert it directly to the left of the date number element
+                    const topFrame = info.el.querySelector('.fc-daygrid-day-top');
+                    if (topFrame) {
+                        topFrame.insertBefore(textMarker, topFrame.firstChild);
+                        topFrame.style.flexDirection = 'row';
+                        topFrame.style.justifyContent = 'space-between';
                     }
-                });
-                
-                calendar.render();
-            } catch (error) {
-                console.error("Error loading calendar events: ", error);
+                }
             }
         });
+        
+        calendar.render();
+    } catch (error) {
+        console.error("Error building calendar schedule template: ", error);
+    }
+});
+
     </script>
 </body>
 </html>
