@@ -214,11 +214,8 @@
                         center: 'title',
                         right: 'dayGridMonth,timeGridWeek'
                     },
-                    events: generateAdminTemplateEvents,
-                    
-                    eventClick: async (info) => {
-                        const props = info.event.extendedProps;
-
+                    events: generateAdminTemplateEvents,                    
+                   
                                            // Handle editing flow by clicking directly on the slots
                     eventClick: async (info) => {
                         const props = info.event.extendedProps;
@@ -282,7 +279,7 @@
                                 }
                             }
                         }
-                    }
+                    },
 
 
                     dayCellDidMount: (info) => {
