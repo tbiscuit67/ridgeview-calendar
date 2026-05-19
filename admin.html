@@ -219,7 +219,11 @@
                     eventClick: async (info) => {
                         const props = info.event.extendedProps;
 
-                        // Sign-up flow for Blank Slots
+                                           // Handle editing flow by clicking directly on the slots
+                    eventClick: async (info) => {
+                        const props = info.event.extendedProps;
+
+                        // 1. SIGN-UP FLOW FOR BLANK SLOTS
                         if (props.isTemplate) {
                             const volunteerName = prompt(`Assign volunteer chair for ${props.meetingName}? \n\nEnter Volunteer Name:`);
                             if (!volunteerName) return;
@@ -232,25 +236,54 @@
                                     chairName: volunteerName,
                                     updatedBy: auth.currentUser.uid
                                 });
-                                //alert("Volunteer successfully assigned!");
                                 initAdminCalendar(); 
                             } catch (err) {
                                 alert("Error updating shift: " + err.message);
                             }
                         } 
-                        // Removal flow for Claimed Slots
+                        // 2. STREAMLINED SWAP / DELETE FLOW FOR CLAIMED SLOTS
                         else {
-                            if (confirm(`Remove volunteer from this ${props.meetingName} shift?`)) {
+                            // Pull the existing name from the event title to display in the prompt
+                            const existingName = info.event.title.split(": ")[1] || "";
+                            
+                            const newVolunteerName = prompt(
+                                `Change volunteer chair for ${props.meetingName}? \n\n(Leave blank and press Enter to completely clear this slot)`, 
+                                existingName
+                            );
+
+                            // User clicked "Cancel" button -> Do nothing and change nothing
+                            if (newVolunteerName === null) return;
+
+                            // User cleared the text input -> Completely delete the assignment from the database
+                            if (newVolunteerName.trim() === "") {
                                 try {
                                     await deleteDoc(doc(db, "meetings", info.event.id));
-                                    alert("Shift cleared back to blank.");
                                     initAdminCalendar();
                                 } catch (err) {
                                     alert("Error removing entry: " + err.message);
                                 }
+                            } 
+                            // User typed a new name -> Write the replacement straight to the database
+                            else {
+                                try {
+                                    // First delete the old document entry
+                                    await deleteDoc(doc(db, "meetings", info.event.id));
+                                    // Then add the new entry under the new name
+                                    await addDoc(collection(db, "meetings"), {
+                                        date: props.dateStr,
+                                        time: props.timeStr,
+                                        meetingName: props.meetingName,
+                                        chairName: newVolunteerName,
+                                        updatedBy: auth.currentUser.uid
+                                    });
+                                    initAdminCalendar();
+                                } catch (err) {
+                                    alert("Error replacing volunteer: " + err.message);
+                                }
                             }
                         }
                     },
+
 
                     dayCellDidMount: (info) => {
                         const cellDate = info.date;
