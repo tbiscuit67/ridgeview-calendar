@@ -18,10 +18,14 @@
         .auth-card button { width: 100%; background: #27ae60; color: white; border: none; padding: 12px; font-size: 16px; border-radius: 4px; cursor: pointer; }
         .hidden { display: none !important; }
         .instructions { background: #e8f4fd; color: #1d6fa5; padding: 12px; border-radius: 6px; margin-bottom: 20px; font-size: 14px; }
-        
         /* Visually offset events with bold text and soft light background colors */
         .fc-event { cursor: pointer; padding: 4px 6px; font-size: 13px; border-radius: 4px; font-weight: bold !important; border: 1px solid rgba(0,0,0,0.05) !important; }
         .fc-event-title { white-space: normal !important; overflow-wrap: break-word; }
+        
+        /* New static 7-column legend row styles matching public index.html layout */
+        .legend-row { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-top: 20px; }
+        .legend-cell { background-color: #fffde7; border: 1px solid #fbc02d; padding: 12px 8px; font-weight: bold; font-size: 12px; color: #5d4037; line-height: 1.5; border-radius: 6px; min-height: 80px; }
+        .legend-cell-first-fri { color: #e74c3c; font-size: 10px; display: block; margin-top: 4px; }
     </style>
 </head>
 <body>
@@ -44,19 +48,25 @@
             </div>
         </div>
         <div class="instructions">
-            💡 <strong>How to manage entries:</strong> Click any unassigned <code>(Blank)</code> slot to type in a volunteer name. To clear a slot back to blank, click directly on the person's name.
+            💡 <strong>How to manage entries:</strong> Click directly on any unassigned gray numbered block to type in a volunteer chair. Click directly on a green block with a name to clear it back out.
         </div>
         
         <div id="calendar"></div>
         
-        <!-- Lightly colored, bolded legend box underneath the calendar -->
-        <div id="legend-container" style="margin-top: 30px; padding: 20px; background-color: #fffde7; border: 2px dashed #fbc02d; border-radius: 8px; font-weight: bold; line-height: 1.8; font-size: 15px; color: #5d4037;">
-            <div id="legend-content">Select any date cell or meeting on the calendar above to view its daily location schedule.</div>
+        <!-- Permanent static 7-column grid layout matching calendar day columns exactly -->
+        <div class="legend-row">
+            <div class="legend-cell">1. COTTAGE E2 6:30PM</div>
+            <div class="legend-cell">1. COTTAGE E2 6:30PM</div>
+            <div class="legend-cell">1. COTTAGE E2 6:30PM</div>
+            <div class="legend-cell">1. COTTAGE E2 6:30PM<br>2. Pro North 7:00PM RECOVERY</div>
+            <div class="legend-cell">1. COTTAGE E2 8:00PM</div>
+            <div class="legend-cell">1. COTTAGE E2 6:30PM<span class="legend-cell-first-fri">2. FIRST FRIDAY CH<br>3. Sp</span></div>
+            <div class="legend-cell">1. Men 6:00PM<br>2. Women 6:00PM<br>3. COTTAGE E2 6:30PM</div>
         </div>
     </div>
 
     <script type="module">
-        // FIXED FIREBASE LINKS: Complete paths to the working Google SDK files
+        // FIXED FIREBASE LINKS: Restored complete verified web URLs for Google module libraries
         import { initializeApp } from "https://gstatic.com";
         import { getFirestore, collection, getDocs, addDoc, doc, deleteDoc } from "https://gstatic.com";
         import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://gstatic.com";
@@ -65,7 +75,7 @@
         // Your active Firebase project configuration
         const firebaseConfig = {
             apiKey: "AIzaSyA3TUDLJsxYUUkYSHnfozd634fU3A0Ljl4",
-            authDomain: "://firebaseapp.com",
+            authDomain: "ridgeview-alum-mtg-calendar.firebaseapp.com",
             projectId: "ridgeview-alum-mtg-calendar",
             storageBucket: "ridgeview-alum-mtg-calendar.firebasestorage.app",
             messagingSenderId: "174039119201",
@@ -79,17 +89,6 @@
         const analytics = getAnalytics(app);
 
         let calendar;
-
-        // Daily text details for the legend box
-        const dailyLegends = {
-            0: "Sunday Meeting Schedule:<br>1. COTTAGE E2 6:30PM",
-            1: "Monday Meeting Schedule:<br>1. COTTAGE E2 6:30PM",
-            2: "Tuesday Meeting Schedule:<br>1. COTTAGE E2 6:30PM",
-            3: "Wednesday Meeting Schedule:<br>1. COTTAGE E2 6:30PM<br>2. Pro North 7:00PM RECOVERY",
-            4: "Thursday Meeting Schedule:<br>1. COTTAGE E2 8:00PM",
-            5: "Friday Meeting Schedule:<br>1. COTTAGE E2 6:30PM",
-            6: "Saturday Meeting Schedule:<br>1. Men 6:00PM<br>2. Women 6:00PM<br>3. COTTAGE E2 6:30PM"
-        };
 
         // Authentication State Listener
         onAuthStateChanged(auth, (user) => {
@@ -123,7 +122,6 @@
         // Initialize Administrator Interactive Calendar Grid
         async function initAdminCalendar() {
             const calendarEl = document.getElementById('calendar');
-            const legendContentEl = document.getElementById('legend-content');
             calendarEl.innerHTML = ''; 
             
             try {
@@ -161,11 +159,17 @@
                         }
                         if (dayOfWeek === 6) {
                             daySlots.push({ num: "1", time: "18:00", name: "Men" });
+                        }
+                        if (dayOfWeek === 6) {
                             daySlots.push({ num: "2", time: "18:00", name: "Women" });
+                        }
+                        if (dayOfWeek === 6) {
                             daySlots.push({ num: "3", time: "18:30", name: "Detox" });
                         }
                         if (isFirstFriday) {
                             daySlots.push({ num: "2", time: "19:00", name: "FIRST FRIDAY CH" });
+                        }
+                        if (isFirstFriday) {
                             daySlots.push({ num: "3", time: "19:00", name: "Sp" });
                         }
 
@@ -173,10 +177,11 @@
                             const key = `${dateIso}_${slot.time}_${slot.name}`;
                             const claimed = claimedShifts[key];
                             
-                            // Editor Mode Colors: Soft pastel green for claimed, soft slate blue for blank
                             const bgCol = claimed ? '#a5d6a7' : '#cfd8dc';
                             const textCol = claimed ? '#1b5e20' : '#37474f';
-                            const titleLabel = claimed ? `${slot.num}. ${slot.name}: ${claimed.chairName}` : `${slot.num}. ${slot.name}: (Blank)`;
+                            
+                            // MODIFIED: Completely stripped out the string label 'Blank' to match public configuration
+                            const titleLabel = claimed ? `${slot.num}. ${slot.name}: ${claimed.chairName}` : `${slot.num}. ${slot.name}`;
 
                             events.push({
                                 id: claimed ? claimed.id : `template_${key}`,
@@ -211,20 +216,12 @@
                     },
                     events: generateAdminTemplateEvents,
                     
-                    // Handle editing flow clicking directly on the slots
                     eventClick: async (info) => {
                         const props = info.event.extendedProps;
 
-                        // 1. Update the bottom legend info bar instantly on click
-                        let outputText = dailyLegends[props.dayOfWeekIndex];
-                        if (props.isFirstFriday) {
-                            outputText = "First Friday Meeting Schedule:<br>1. COTTAGE E2 6:30PM<br>2. FIRST FRIDAY CH<br>3. Sp";
-                        }
-                        legendContentEl.innerHTML = outputText;
-
-                        // 2. Sign-up flow for Blank Slots
+                        // Sign-up flow for Blank Slots
                         if (props.isTemplate) {
-                            const volunteerName = prompt(`Assign volunteer chair for ${props.meetingName}?\n\nEnter Volunteer Name:`);
+                            const volunteerName = prompt(`Assign volunteer chair for ${props.meetingName}? \n\nEnter Volunteer Name:`);
                             if (!volunteerName) return;
 
                             try {
@@ -241,7 +238,7 @@
                                 alert("Error updating shift: " + err.message);
                             }
                         } 
-                        // 3. Removal flow for Claimed Slots
+                        // Removal flow for Claimed Slots
                         else {
                             if (confirm(`Remove volunteer from this ${props.meetingName} shift?`)) {
                                 try {
@@ -253,19 +250,6 @@
                                 }
                             }
                         }
-                    },
-
-                    // Update legend text when clicking an entire day box frame
-                    dateClick: (info) => {
-                        const clickedDate = new Date(info.dateStr + 'T00:00:00');
-                        const dayIdx = clickedDate.getDay();
-                        let isClickFirstFriday = (dayIdx === 5 && clickedDate.getDate() <= 7);
-                        
-                        let outputText = dailyLegends[dayIdx];
-                        if (isClickFirstFriday) {
-                            outputText = "First Friday Meeting Schedule:<br>1. COTTAGE E2 6:30PM<br>2. FIRST FRIDAY CH<br>3. Sp";
-                        }
-                        legendContentEl.innerHTML = outputText;
                     },
 
                     dayCellDidMount: (info) => {
