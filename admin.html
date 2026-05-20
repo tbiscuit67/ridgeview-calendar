@@ -95,7 +95,7 @@
             if (user) {
                 document.getElementById('loginForm').classList.add('hidden');
                 document.getElementById('adminDashboard').classList.remove('hidden');
-                initAdminCalendar();
+                initAdminCalendar(currentDate);
             } else {
                 document.getElementById('loginForm').classList.remove('hidden');
                 document.getElementById('adminDashboard').classList.add('hidden');
@@ -120,7 +120,8 @@
         });
 
         // Initialize Administrator Interactive Calendar Grid
-        async function initAdminCalendar() {
+        //I changed the initadmincalendar to include restoreDate = null
+        async function initAdminCalendar(restoreDate = null) {
             const calendarEl = document.getElementById('calendar');
             calendarEl.innerHTML = ''; 
             
@@ -206,6 +207,8 @@
 
                 calendar = new FullCalendar.Calendar(calendarEl, {
                     initialView: 'dayGridMonth',
+                    // this keeps the view on the month being edited
+                    initialDate: restoreDate || new Date(),
                     displayEventTime: false, 
                     eventDisplay: 'block',    
                     dayMaxEvents: true,       
@@ -219,6 +222,8 @@
                                            // Handle editing flow by clicking directly on the slots
                     eventClick: async (info) => {
                         const props = info.event.extendedProps;
+                        //change to keep the current page after updating
+                        const currentDate = calendar.getDate();
 
                         // 1. SIGN-UP FLOW FOR BLANK SLOTS
                         if (props.isTemplate) {
@@ -233,7 +238,7 @@
                                     chairName: volunteerName,
                                     updatedBy: auth.currentUser.uid
                                 });
-                                initAdminCalendar(); 
+                                initAdminCalendar(currentDate);
                             } catch (err) {
                                 alert("Error updating shift: " + err.message);
                             }
@@ -255,7 +260,7 @@
                             if (newVolunteerName.trim() === "") {
                                 try {
                                     await deleteDoc(doc(db, "meetings", info.event.id));
-                                    initAdminCalendar();
+                                    initAdminCalendar(currentDate);
                                 } catch (err) {
                                     alert("Error removing entry: " + err.message);
                                 }
@@ -273,7 +278,7 @@
                                         chairName: newVolunteerName,
                                         updatedBy: auth.currentUser.uid
                                     });
-                                    initAdminCalendar();
+                                    initAdminCalendar(currentDate);
                                 } catch (err) {
                                     alert("Error replacing volunteer: " + err.message);
                                 }
@@ -304,6 +309,10 @@
                     }
                 });
                 calendar.render();
+                if (restoreDate) {
+                calendar.gotoDate(restoreDate);
+                }
+
             } catch (err) {
                 console.error("Dashboard Setup Error:", err);
             }
