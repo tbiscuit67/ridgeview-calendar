@@ -1,6 +1,29 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <style>
+/* De-emphasize days that are not in the current month */
+#calendar .fc-daygrid-day.fc-day-other {
+  background-color: #f5f6f8 !important;
+  border-color: rgba(0,0,0,0.03) !important;
+}
+
+/* Muted date number in the top-left of the day cell */
+#calendar .fc-daygrid-day.fc-day-other .fc-daygrid-day-top,
+#calendar .fc-daygrid-day.fc-day-other .fc-daygrid-day-number {
+  color: #9aa0a6 !important;
+}
+
+/* Slightly fade events that appear in other-month cells */
+#calendar .fc-daygrid-day.fc-day-other .fc-event {
+  opacity: 0.75;
+}
+
+/* Optional: reduce hover emphasis for other-month cells */
+#calendar .fc-daygrid-day.fc-day-other:hover {
+  background-color: #eef0f2 !important;
+}
+</style>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Calendar Administration</title>
