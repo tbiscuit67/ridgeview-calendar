@@ -30,6 +30,40 @@
 #calendar .fc-daygrid-day.fc-day-other:hover {
   background-color: #c9d1d6 !important;
 }
+@media print {
+    /* 1. Hide non-essential UI elements */
+    .header, 
+    .auth-card, 
+    .instructions, 
+    .btn, 
+    #logoutBtn {
+        display: none !important;
+    }
+
+    /* 2. Optimize the calendar container for print */
+    body {
+        background-color: white !important;
+        padding: 0;
+    }
+
+    .container {
+        box-shadow: none !important;
+        padding: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+
+    /* 3. Ensure the calendar fills the page */
+    #calendar {
+        width: 100% !important;
+    }
+
+    /* 4. Optional: Force colors to print (by default some browsers hide backgrounds) */
+    * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+}
 
 </style>
     <meta charset="UTF-8">
