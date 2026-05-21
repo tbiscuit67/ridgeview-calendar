@@ -5,17 +5,16 @@
 /* De-emphasize days not in the current month */
 :root {
   --other-month-bg: #d0d7dc;
-  --other-month-number: #0b3d3b !important; /* deep teal — dark but not black */
-}
-/* De-emphasize days not in the current month */
-#calendar .fc-daygrid-day.fc-day-other {
-  background-color: var(--other-month-bg) !important;
-  border-color: rgba(0,0,0,0.06) !important;
+  --other-month-number: #0b3d3b !important;
 }
 
-/* Dark, fun color for the date number */
-#calendar .fc-daygrid-day.fc-day-other .fc-daygrid-day-number,
-#calendar .fc-daygrid-day.fc-day-other .fc-daygrid-day-top {
+/* 1. Shade the entire day cell */
+#calendar .fc-daygrid-day.fc-day-other {
+  background-color: var(--other-month-bg) !important;
+}
+
+/* 2. Target the number specifically using the v6 structure */
+#calendar .fc-daygrid-day.fc-day-other .fc-daygrid-day-top a.fc-daygrid-day-number {
   color: var(--other-month-number) !important;
   font-weight: 600;
 }
