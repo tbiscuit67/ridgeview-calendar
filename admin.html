@@ -7,17 +7,16 @@
   --other-month-bg: #d0d7dc;
 }
 
-/* 1. Shade the entire day cell */
-#calendar .fc .fc-daygrid-day.fc-day-other {
+/* 1. Background for the entire cell */
+.fc-daygrid-day.fc-day-other {
   background-color: var(--other-month-bg) !important;
 }
 
-/* 2. Target the number specifically */
-#calendar .fc .fc-daygrid-day.fc-day-other .fc-daygrid-day-number {
+/* 2. Target the date number specifically */
+.fc-daygrid-day.fc-day-other .fc-daygrid-day-number {
   color: #0b3d3b !important;
-  font-weight: 600;
+  font-weight: 600 !important;
 }
-
 /* Keep events readable */
 #calendar .fc .fc-daygrid-day.fc-day-other .fc-event {
   opacity: 0.9;
