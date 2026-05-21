@@ -3,27 +3,34 @@
 <head>
     <style>
 /* De-emphasize days not in the current month */
+:root {
+  --other-month-bg: #d0d7dc;
+  --other-month-number: #0b3d3b; /* deep teal — dark but not black */
+}
+
+/* De-emphasize days not in the current month */
 #calendar .fc-daygrid-day.fc-day-other {
-  background-color: #d0d7dc !important; /* darker muted background */
+  background-color: var(--other-month-bg) !important;
   border-color: rgba(0,0,0,0.06) !important;
 }
 
-/* Dark date number for readability */
+/* Dark, fun color for the date number */
 #calendar .fc-daygrid-day.fc-day-other .fc-daygrid-day-number,
 #calendar .fc-daygrid-day.fc-day-other .fc-daygrid-day-top {
-  color: #1f2a30 !important; /* dark slate for numbers/labels */
+  color: var(--other-month-number) !important;
+  font-weight: 600;
 }
 
 /* Keep events readable but slightly muted */
 #calendar .fc-daygrid-day.fc-day-other .fc-event {
   opacity: 0.9;
-  filter: saturate(0.95);
 }
 
-/* Optional: subtle hover so users still see interactivity */
+/* Optional hover to keep interactivity visible */
 #calendar .fc-daygrid-day.fc-day-other:hover {
   background-color: #c9d1d6 !important;
 }
+
 </style>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
