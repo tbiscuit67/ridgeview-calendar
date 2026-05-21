@@ -12,10 +12,9 @@
   background-color: var(--other-month-bg) !important;
 }
 
-/* 2. Target the date number specifically */
-.fc-daygrid-day.fc-day-other .fc-daygrid-day-number {
-  color: #0b3d3b !important;
-  font-weight: 600 !important;
+/* Final Attempt: High Specificity Override */
+.fc .fc-daygrid-day.fc-day-other a.fc-daygrid-day-number {
+    color: #0b3d3b !important;
 }
 /* Keep events readable */
 #calendar .fc .fc-daygrid-day.fc-day-other .fc-event {
