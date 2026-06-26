@@ -1,187 +1,65 @@
-<!DOCTYPE html> 
-<html lang="en"> 
-<head> 
-    <meta charset="UTF-8"> 
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"> 
-    <title>Ridgeview Volunteer Schedule</title> 
-    <!-- FIX 1: Corrected FullCalendar CDN Links --> 
-    <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css" rel="stylesheet"> 
-    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script> 
-    <style> 
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 20px; background-color: #f8f9fa; color: #333; } 
-        .container { max-width: 1100px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); } 
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; border-bottom: 2px solid #eaeaea; padding-bottom: 15px; } 
-        h1 { margin: 0; font-size: 24px; color: #1a252f; } 
-        .admin-btn { background-color: #34495e; color: white; text-decoration: none; padding: 10px 16px; border-radius: 6px; font-size: 14px; font-weight: bold; transition: background 0.2s; } 
-        .admin-btn:hover { background-color: #2c3e50; } 
-        /* Visually offset events with bold text and soft light background colors */ 
-        .fc-event { cursor: pointer; padding: 4px 6px; font-size: 13px; border-radius: 4px; font-weight: bold !important; border: 1px solid rgba(0,0,0,0.05) !important; } 
-        .fc-event-title { white-space: normal !important; overflow-wrap: break-word; } 
-        
-        /* New static 7-column legend row styles */
-        .legend-row { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-top: 20px; }
-        .legend-cell { background-color: #fffde7; border: 1px solid #fbc02d; padding: 12px 8px; font-weight: bold; font-size: 12px; color: #5d4037; line-height: 1.5; border-radius: 6px; min-height: 80px; }
-        .legend-cell-first-fri { color: #e74c3c; font-size: 10px; display: block; margin-top: 4px; }
-    </style> 
-</head> 
-<body> 
-    <div class="container"> 
-        <div class="header"> 
-            <h1>Ridgeview Institute — Recovery Meeting Chairs</h1> 
-            <a href="admin.html" class="admin-btn">Editor Login</a> 
-        </div> 
-        <div id="calendar"></div> 
-        
-        <!-- Permanent static 7-column grid layout matching calendar day columns exactly -->
-        <div class="legend-row">
-            <div class="legend-cell">1. COTTAGE E2 6:30PM</div>
-            <div class="legend-cell">1. COTTAGE E2 6:30PM</div>
-            <div class="legend-cell">1. COTTAGE E2 6:30PM</div>
-            <div class="legend-cell">1. COTTAGE E2 6:30PM<br>2. Pro North 7:00PM RECOVERY</div>
-            <div class="legend-cell">1. COTTAGE E2 8:00PM</div>
-            <div class="legend-cell">1. COTTAGE E2 6:30PM<span class="legend-cell-first-fri">2. FIRST FRIDAY CH<br>3. Sp</span></div>
-            <div class="legend-cell">1. Men 6:00PM<br>2. Women 6:00PM<br>3. COTTAGE E2 6:30PM</div>
-        </div>
-    </div> 
-    
-    <script type="module"> 
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js"; 
-        import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js"; 
-        import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-analytics.js"; 
-        
-        const firebaseConfig = { 
-            apiKey: "AIzaSyA3TUDLJsxYUUkYSHnfozd634fU3A0Ljl4", 
-            authDomain: "ridgeview-alum-mtg-calendar.firebaseapp.com", 
-            projectId: "ridgeview-alum-mtg-calendar", 
-            storageBucket: "ridgeview-alum-mtg-calendar.firebasestorage.app", 
-            messagingSenderId: "174039119201", 
-            appId: "1:174039119201:web:c1d19ea251339c16654120", 
-            measurementId: "G-RT9GBNC5J9" 
-        }; 
-        
-        const app = initializeApp(firebaseConfig); 
-        const db = getFirestore(app); 
-        const analytics = getAnalytics(app); 
-        
-        document.addEventListener('DOMContentLoaded', async () => { 
-            const calendarEl = document.getElementById('calendar'); 
-            
-            try { 
-                const querySnapshot = await getDocs(collection(db, "meetings")); 
-                const claimedShifts = {}; 
-                querySnapshot.forEach((doc) => { 
-                    const data = doc.data(); 
-                    const key = `${data.date}_${data.time}_${data.meetingName}`; 
-                    claimedShifts[key] = { id: doc.id, chairName: data.chairName }; 
-                    console.log("Found claimed assignment for key:", key);
-                }); 
-                
-                const generateTemplateEvents = (fetchInfo, successCallback, failureCallback) => { 
-                    const events = []; 
-                    let start = new Date(fetchInfo.start); 
-                    let end = new Date(fetchInfo.end); 
-                    
-                    while (start < end) { 
-                        const year = start.getFullYear(); 
-                        const month = String(start.getMonth() + 1).padStart(2, '0'); 
-                        const dayStr = String(start.getDate()).padStart(2, '0'); 
-                        const dateIso = `${year}-${month}-${dayStr}`; 
-                        const dayOfWeek = start.getDay(); 
-                        
-                        let isFirstFriday = (dayOfWeek === 5 && start.getDate() <= 7); 
-                        const daySlots = []; 
-                        
-                        if (dayOfWeek !== 4 && dayOfWeek !== 6) { 
-                            daySlots.push({ num: "1", time: "18:30", name: "Detox" }); 
-                        } 
-                        if (dayOfWeek === 3) { 
-                            daySlots.push({ num: "2", time: "19:00", name: "Recovery" }); 
-                        } 
-                        if (dayOfWeek === 4) { 
-                            daySlots.push({ num: "1", time: "20:00", name: "Detox" }); 
-                        } 
-                        if (dayOfWeek === 6) { 
-                            daySlots.push({ num: "1", time: "18:00", name: "Men" }); 
-                        } 
-                        if (dayOfWeek === 6) { 
-                            daySlots.push({ num: "2", time: "18:00", name: "Women" }); 
-                        } 
-                        if (dayOfWeek === 6) { 
-                            daySlots.push({ num: "3", time: "18:30", name: "Detox" }); 
-                        } 
-                        if (isFirstFriday) { 
-                            daySlots.push({ num: "2", time: "19:00", name: "FIRST FRIDAY CH" }); 
-                        } 
-                        if (isFirstFriday) { 
-                            daySlots.push({ num: "3", time: "19:00", name: "Sp" }); 
-                        } 
-                        
-                        daySlots.forEach(slot => { 
-                            const key = `${dateIso}_${slot.time}_${slot.name}`; 
-                            const claimed = claimedShifts[key]; 
-                            
-                            const bgCol = claimed ? '#e8f5e9' : '#eceff1'; 
-                            const textCol = claimed ? '#2e7d32' : '#607d8b'; 
-                            
-                            // MODIFIED: Stripped out the word 'Blank'—now shows only number and title if unassigned
-                            const titleLabel = claimed ? `${slot.num}. ${slot.name}: ${claimed.chairName}` : `${slot.num}. ${slot.name}`; 
-                            
-                            events.push({ 
-                                id: claimed ? claimed.id : `template_${key}`, 
-                                title: titleLabel, 
-                                start: `${dateIso}T${slot.time}`, 
-                                backgroundColor: bgCol, 
-                                textColor: textCol, 
-                                extendedProps: { 
-                                    dayOfWeekIndex: dayOfWeek, 
-                                    isFirstFriday: isFirstFriday 
-                                } 
-                            }); 
-                        }); 
-                        start.setDate(start.getDate() + 1); 
-                    } 
-                    successCallback(events); 
-                }; 
-                
-                const calendar = new FullCalendar.Calendar(calendarEl, { 
-                    initialView: 'dayGridMonth', 
-                    displayEventTime: false, 
-                    eventDisplay: 'block', 
-                    dayMaxEvents: true, 
-                    headerToolbar: { 
-                        left: 'prev,next today', 
-                        center: 'title', 
-                        right: 'dayGridMonth,timeGridWeek' 
-                    }, 
-                    events: generateTemplateEvents, 
-                    eventTimeFormat: { hour: 'numeric', minute: '2-digit', meridiem: 'short' }, 
-                    
-                    dayCellDidMount: (info) => { 
-                        const cellDate = info.date; 
-                        if (cellDate.getDay() === 5 && cellDate.getDate() <= 7) { 
-                            const textMarker = document.createElement('div'); 
-                            textMarker.innerText = 'FIRST FRIDAY'; 
-                            textMarker.style.color = '#e74c3c'; 
-                            textMarker.style.fontSize = '10px'; 
-                            textMarker.style.fontWeight = 'bold'; 
-                            textMarker.style.paddingLeft = '5px'; 
-                            textMarker.style.paddingTop = '2px'; 
-                            textMarker.style.float = 'left'; 
-                            
-                            const topFrame = info.el.querySelector('.fc-daygrid-day-top'); 
-                            if (topFrame) { 
-                                topFrame.insertBefore(textMarker, topFrame.firstChild); 
-                                topFrame.style.flexDirection = 'row'; 
-                                topFrame.style.justifyContent = 'space-between'; 
-                            } 
-                        } 
-                    } 
-                }); 
-                calendar.render(); 
-            } catch (error) { 
-                console.error("Error building calendar schedule template: ", error); 
-            } 
-        }); 
-    </script> 
-</body> 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ridgeview Volunteer Schedule</title>
+
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Ridgeview Institute — Recovery Meeting Chairs</h1>
+      <a href="admin.html" class="btn admin-btn">Editor Login</a>
+    </div>
+
+    <div id="calendar"></div>
+
+    <!-- Static weekday reference key (room/time detail for each weekday column) -->
+    <div class="legend-row">
+      <div class="legend-cell">1. COTTAGE E2 6:30PM</div>
+      <div class="legend-cell">1. COTTAGE E2 6:30PM</div>
+      <div class="legend-cell">1. COTTAGE E2 6:30PM</div>
+      <div class="legend-cell">1. COTTAGE E2 6:30PM<br>2. Pro North 7:00PM RECOVERY</div>
+      <div class="legend-cell">1. COTTAGE E2 8:00PM</div>
+      <div class="legend-cell">1. COTTAGE E2 6:30PM<span class="legend-cell-first-fri">2. FIRST FRIDAY CH<br>3. Sp</span></div>
+      <div class="legend-cell">1. Men 6:00PM<br>2. Women 6:00PM<br>3. COTTAGE E2 6:30PM</div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { db } from "./js/firebase-config.js";
+    import { fetchClaimedShifts, generateEvents, BASE_CALENDAR_OPTIONS } from "./js/schedule.js";
+
+    const OPEN_COLORS = {
+      openBg: "#eceff1",
+      openText: "#607d8b",
+      claimedBg: "#e8f5e9",
+      claimedText: "#2e7d32"
+    };
+
+    document.addEventListener("DOMContentLoaded", async () => {
+      const calendarEl = document.getElementById("calendar");
+
+      try {
+        const claimedShifts = await fetchClaimedShifts(db);
+
+        const calendar = new FullCalendar.Calendar(calendarEl, {
+          ...BASE_CALENDAR_OPTIONS,
+          events: (fetchInfo, successCallback) => {
+            successCallback(generateEvents(fetchInfo, claimedShifts, OPEN_COLORS));
+          }
+        });
+
+        calendar.render();
+      } catch (error) {
+        console.error("Error loading the volunteer schedule:", error);
+        calendarEl.textContent = "Sorry, the schedule couldn't be loaded right now. Please try again later.";
+      }
+    });
+  </script>
+</body>
 </html>
