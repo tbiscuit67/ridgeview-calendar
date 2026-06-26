@@ -156,45 +156,85 @@ h1 { font-size: 24px; }
   margin-top: 4px;
 }
 
+/* Print title — hidden on screen, shown only when printing */
+.print-title {
+  display: none;
+}
+
 /* ============================
    PRINT STYLES (both pages)
-   ============================
-   Previously only admin.html had a print stylesheet, so printing the
-   public page produced the full app chrome (login link, shadows, etc.)
-   with no print-specific layout at all. This block now covers both
-   pages, and works together with dayMaxEvents:false in schedule.js so
-   a day with 3 shifts prints all 3 instead of a "+2 more" link. */
+   ============================ */
 @media print {
   @page { size: landscape; margin: 0.4in; }
 
-  body { background: white !important; padding: 0; }
+  body { background: white !important; padding: 0; margin: 0; }
 
   .container {
     box-shadow: none !important;
     padding: 0 !important;
     max-width: 100% !important;
+    width: 100% !important;
   }
 
   /* Nothing on either page needs to be interactive on paper */
   .auth-card,
   .instructions,
   .btn,
-  #logoutBtn {
+  #logoutBtn,
+  .header {
     display: none !important;
+  }
+
+  /* Hide Today button, prev/next arrows, and Month/Week view buttons */
+  .fc-today-button,
+  .fc-prev-button,
+  .fc-next-button,
+  .fc-dayGridMonth-button,
+  .fc-timeGridWeek-button,
+  .fc-toolbar-chunk:first-child,
+  .fc-toolbar-chunk:last-child {
+    display: none !important;
+  }
+
+  /* Print title above the month/year */
+  .print-title {
+    display: block !important;
+    text-align: center;
+    font-size: 20pt;
+    font-weight: bold;
+    color: #1a252f;
+    margin-bottom: 4px;
   }
 
   #calendar, .legend-row { width: 100% !important; }
 
-  /* Force background colors (open/claimed shift colors, legend, etc.)
-     to actually show up on paper instead of being stripped by the
-     browser's default print rendering. */
+  /* Scale up calendar text to fill the page */
+  .fc { font-size: 11pt !important; }
+  .fc-col-header-cell { font-size: 11pt !important; }
+  .fc-daygrid-day-number { font-size: 11pt !important; }
+  .fc-event { font-size: 9pt !important; padding: 3px 5px !important; }
+  .fc-toolbar-title { font-size: 16pt !important; }
+
+  /* Align legend row to calendar's 7-column table layout */
+  .legend-row {
+    display: table !important;
+    width: 100% !important;
+    table-layout: fixed !important;
+    border-collapse: separate !important;
+    border-spacing: 4px 0 !important;
+    margin-top: 6px !important;
+  }
+  .legend-cell {
+    display: table-cell !important;
+    font-size: 9pt !important;
+  }
+
+  /* Force background colors to print */
   * {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
 
-  /* Keep a week row, an individual shift, or a legend cell from being
-     sliced across a page break. */
   .fc-daygrid-day, .fc-event, .legend-cell {
     page-break-inside: avoid;
   }
