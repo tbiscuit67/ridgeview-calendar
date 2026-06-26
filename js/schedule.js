@@ -124,23 +124,27 @@ export function markFirstFridayCell(info) {
   }
 }
 
+const isMobile = () => window.innerWidth < 768;
+
 // Shared FullCalendar configuration used by both pages.
-//
-// dayMaxEvents is explicitly set to false (no cap). The old config left
-// this as `true`, which made FullCalendar collapse any day with more
-// than a couple of shifts (e.g. every Saturday, with 3 shifts) into a
-// "+2 more" link. That link can't be clicked or read on a printed page,
-// which is exactly the issue you flagged — so the cap is removed
-// entirely and every day cell just grows to show all of its shifts.
 export const BASE_CALENDAR_OPTIONS = {
-  initialView: "dayGridMonth",
+  initialView: isMobile() ? "listMonth" : "dayGridMonth",
   displayEventTime: false,
   eventDisplay: "block",
   dayMaxEvents: false,
-  headerToolbar: {
-    left: "prev,next today",
-    center: "title",
-    right: "dayGridMonth,timeGridWeek"
+  headerToolbar: isMobile()
+    ? { left: "prev,next today", center: "title", right: "listMonth,listWeek" }
+    : { left: "prev,next today", center: "title", right: "dayGridMonth,timeGridWeek" },
+  views: {
+    listMonth: { displayEventTime: true, buttonText: "Month list" },
+    listWeek:  { displayEventTime: true, buttonText: "Week list" }
+  },
+  windowResize() {
+    this.changeView(isMobile() ? "listMonth" : "dayGridMonth");
+    this.setOption("headerToolbar", isMobile()
+      ? { left: "prev,next today", center: "title", right: "listMonth,listWeek" }
+      : { left: "prev,next today", center: "title", right: "dayGridMonth,timeGridWeek" }
+    );
   },
   eventTimeFormat: { hour: "numeric", minute: "2-digit", meridiem: "short" },
   dayCellDidMount: markFirstFridayCell

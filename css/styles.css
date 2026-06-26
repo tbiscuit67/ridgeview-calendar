@@ -162,6 +162,24 @@ h1 { font-size: 24px; }
 }
 
 /* ============================
+   MOBILE STYLES
+   ============================ */
+@media (max-width: 767px) {
+  body { padding: 10px; }
+
+  .container { padding: 15px; }
+
+  /* Legend is only meaningful as column labels under the month grid */
+  .legend-row { display: none; }
+
+  /* Make list-view events easier to tap */
+  .fc-list-event-title { font-size: 15px; }
+  .fc-list-event td { padding: 10px 8px; }
+
+  h1 { font-size: 18px; }
+}
+
+/* ============================
    PRINT STYLES (both pages)
    ============================ */
 @media print {
