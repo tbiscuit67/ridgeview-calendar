@@ -161,6 +161,11 @@ h1 { font-size: 24px; }
   display: none;
 }
 
+/* Scroll hint — only visible on mobile, fades once user scrolls */
+.scroll-hint {
+  display: none;
+}
+
 /* ============================
    MOBILE STYLES
    ============================ */
@@ -177,6 +182,24 @@ h1 { font-size: 24px; }
   .fc-list-event td { padding: 10px 8px; }
 
   h1 { font-size: 18px; }
+
+  /* Scroll hint — fixed arrow at bottom of screen */
+  .scroll-hint {
+    display: block;
+    position: fixed;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(52, 73, 94, 0.85);
+    color: white;
+    font-size: 14px;
+    padding: 8px 18px;
+    border-radius: 20px;
+    pointer-events: none;
+    transition: opacity 0.5s ease;
+    z-index: 999;
+  }
+  .scroll-hint.hidden { opacity: 0; }
 }
 
 /* ============================

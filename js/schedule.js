@@ -136,8 +136,8 @@ export const BASE_CALENDAR_OPTIONS = {
     ? { left: "prev,next today", center: "title", right: "listMonth,listWeek" }
     : { left: "prev,next today", center: "title", right: "dayGridMonth,timeGridWeek" },
   views: {
-    listMonth: { displayEventTime: true, buttonText: "Month list" },
-    listWeek:  { displayEventTime: true, buttonText: "Week list" }
+    listMonth: { displayEventTime: true, buttonText: "Month list", height: "auto" },
+    listWeek:  { displayEventTime: true, buttonText: "Week list",  height: "auto" }
   },
   windowResize() {
     this.changeView(isMobile() ? "listMonth" : "dayGridMonth");

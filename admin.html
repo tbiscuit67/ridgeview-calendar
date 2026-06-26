@@ -47,6 +47,16 @@
     </div>
   </div>
 
+  <div class="scroll-hint" id="scrollHint">&#8595; scroll for more</div>
+
+  <script>
+    window.addEventListener("scroll", function hideHint() {
+      const hint = document.getElementById("scrollHint");
+      if (hint) hint.classList.add("hidden");
+      window.removeEventListener("scroll", hideHint);
+    }, { passive: true });
+  </script>
+
   <script type="module">
     import { db, auth } from "./js/firebase-config.js";
     import {

@@ -32,6 +32,16 @@
     </div>
   </div>
 
+  <div class="scroll-hint" id="scrollHint">&#8595; scroll for more</div>
+
+  <script>
+    window.addEventListener("scroll", function hideHint() {
+      const hint = document.getElementById("scrollHint");
+      if (hint) hint.classList.add("hidden");
+      window.removeEventListener("scroll", hideHint);
+    }, { passive: true });
+  </script>
+
   <script type="module">
     import { db } from "./js/firebase-config.js";
     import { fetchClaimedShifts, generateEvents, BASE_CALENDAR_OPTIONS } from "./js/schedule.js";
