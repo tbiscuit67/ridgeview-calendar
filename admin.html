@@ -8,6 +8,7 @@
 <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
 <link rel="stylesheet" href="css/styles.css">
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 </head>
 <body>
 
@@ -31,6 +32,15 @@
 
     <div class="instructions">
       💡 <strong>How to manage entries:</strong> Click directly on any unassigned gray numbered block to type in a volunteer chair. Click directly on a green block with a name to clear it back out.
+    </div>
+
+    <!-- Pending volunteer requests -->
+    <div class="pending-section">
+      <div class="pending-section-header">
+        <h3>Pending Chair Requests</h3>
+        <span id="pendingBadge" class="badge hidden">0</span>
+      </div>
+      <div id="pendingList"><p class="no-pending">Loading…</p></div>
     </div>
 
     <div id="calendar"></div>
@@ -60,33 +70,58 @@
   <script type="module">
     import { db, auth } from "./js/firebase-config.js";
     import {
-      signInWithEmailAndPassword,
-      signOut,
-      onAuthStateChanged
+      signInWithEmailAndPassword, signOut, onAuthStateChanged
     } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-    import { addDoc, deleteDoc, doc, collection } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import {
+      addDoc, deleteDoc, doc, collection,
+      getDocs, query, where, updateDoc, serverTimestamp
+    } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
     import { fetchClaimedShifts, generateEvents, BASE_CALENDAR_OPTIONS } from "./js/schedule.js";
 
-    const CLAIMED_COLORS = {
-      openBg: "#cfd8dc",
-      openText: "#37474f",
-      claimedBg: "#a5d6a7",
-      claimedText: "#1b5e20"
-    };
+    // ── EmailJS Configuration ────────────────────────────────────────────
+    // Use the same account/service as index.html.
+    // Create a "volunteer_response" template with variables:
+    //   volunteer_name, volunteer_email, decision ("approved" or "rejected"),
+    //   meeting_name, meeting_date, rejection_note
+    const EMAILJS_PUBLIC_KEY     = "YOUR_PUBLIC_KEY";         // ← replace
+    const EMAILJS_SERVICE_ID     = "YOUR_SERVICE_ID";         // ← replace
+    const EMAILJS_REPLY_TEMPLATE = "YOUR_REPLY_TEMPLATE_ID";  // ← replace
 
+    if (EMAILJS_PUBLIC_KEY !== "YOUR_PUBLIC_KEY") emailjs.init(EMAILJS_PUBLIC_KEY);
+
+    // ── State ─────────────────────────────────────────────────────────────
+    const CLAIMED_COLORS = {
+      openBg: "#cfd8dc", openText: "#37474f",
+      claimedBg: "#a5d6a7", claimedText: "#1b5e20"
+    };
     let calendar = null;
     let lastViewedDate = null;
+    const pendingMap = new Map(); // reqId → request data
 
-    // --- Auth wiring -----------------------------------------------------
+    // ── Helpers ───────────────────────────────────────────────────────────
+    function fmtDate(dateStr) {
+      return new Date(dateStr + "T12:00:00").toLocaleDateString("en-US",
+        { weekday: "short", month: "short", day: "numeric", year: "numeric" });
+    }
+    function fmtTime(timeStr) {
+      const [h, m] = timeStr.split(":");
+      return new Date(0, 0, 0, +h, +m).toLocaleTimeString("en-US",
+        { hour: "numeric", minute: "2-digit" });
+    }
+
+    // ── Auth ──────────────────────────────────────────────────────────────
     onAuthStateChanged(auth, (user) => {
       document.getElementById("loginForm").classList.toggle("hidden", Boolean(user));
       document.getElementById("adminDashboard").classList.toggle("hidden", !user);
-      if (user) initAdminCalendar(lastViewedDate);
+      if (user) {
+        initAdminCalendar(lastViewedDate);
+        loadPendingRequests();
+      }
     });
 
     document.getElementById("loginBtn").addEventListener("click", async (e) => {
       e.preventDefault();
-      const email = document.getElementById("email").value.trim();
+      const email    = document.getElementById("email").value.trim();
       const password = document.getElementById("password").value;
       try {
         await signInWithEmailAndPassword(auth, email, password);
@@ -97,23 +132,19 @@
 
     document.getElementById("logoutBtn").addEventListener("click", () => signOut(auth));
 
-    // --- Calendar setup ----------------------------------------------------
+    // ── Calendar ──────────────────────────────────────────────────────────
     async function initAdminCalendar(restoreDate) {
       const calendarEl = document.getElementById("calendar");
       calendarEl.innerHTML = "";
-
       try {
         const claimedShifts = await fetchClaimedShifts(db);
-
         calendar = new FullCalendar.Calendar(calendarEl, {
           ...BASE_CALENDAR_OPTIONS,
           initialDate: restoreDate || new Date(),
-          events: (fetchInfo, successCallback) => {
-            successCallback(generateEvents(fetchInfo, claimedShifts, CLAIMED_COLORS));
-          },
+          events: (fetchInfo, successCallback) =>
+            successCallback(generateEvents(fetchInfo, claimedShifts, CLAIMED_COLORS)),
           eventClick: handleEventClick
         });
-
         calendar.render();
         if (restoreDate) calendar.gotoDate(restoreDate);
       } catch (error) {
@@ -122,61 +153,144 @@
       }
     }
 
-    // --- Editing flow --------------------------------------------------
+    // ── Editing ───────────────────────────────────────────────────────────
     async function handleEventClick(info) {
       const props = info.event.extendedProps;
       lastViewedDate = calendar.getDate();
-
-      if (props.isTemplate) {
-        await assignVolunteer(props);
-      } else {
-        await editOrClearVolunteer(info, props);
-      }
+      if (props.isTemplate) await assignVolunteer(props);
+      else                  await editOrClearVolunteer(info, props);
     }
 
     async function assignVolunteer(props) {
       const name = prompt(`Assign volunteer chair for ${props.meetingName}?\n\nEnter Volunteer Name:`);
       if (!name) return;
-
       try {
         await addDoc(collection(db, "meetings"), {
-          date: props.dateStr,
-          time: props.timeStr,
-          meetingName: props.meetingName,
-          chairName: name,
+          date: props.dateStr, time: props.timeStr,
+          meetingName: props.meetingName, chairName: name,
           updatedBy: auth.currentUser.uid
         });
         initAdminCalendar(lastViewedDate);
-      } catch (error) {
-        alert("Error updating shift: " + error.message);
-      }
+      } catch (error) { alert("Error updating shift: " + error.message); }
     }
 
     async function editOrClearVolunteer(info, props) {
       const existingName = info.event.title.split(": ")[1] || "";
       const newName = prompt(
-        `Change volunteer chair for ${props.meetingName}?\n\n(Leave blank and press Enter to completely clear this slot)`,
+        `Change volunteer chair for ${props.meetingName}?\n\n(Leave blank to clear this slot)`,
         existingName
       );
-
-      if (newName === null) return; // Cancelled — change nothing
-
+      if (newName === null) return;
       try {
         await deleteDoc(doc(db, "meetings", info.event.id));
-
         if (newName.trim() !== "") {
           await addDoc(collection(db, "meetings"), {
-            date: props.dateStr,
-            time: props.timeStr,
-            meetingName: props.meetingName,
-            chairName: newName,
+            date: props.dateStr, time: props.timeStr,
+            meetingName: props.meetingName, chairName: newName,
             updatedBy: auth.currentUser.uid
           });
         }
         initAdminCalendar(lastViewedDate);
-      } catch (error) {
-        alert("Error updating volunteer: " + error.message);
+      } catch (error) { alert("Error updating volunteer: " + error.message); }
+    }
+
+    // ── Pending requests ──────────────────────────────────────────────────
+    async function loadPendingRequests() {
+      try {
+        const snap = await getDocs(
+          query(collection(db, "requests"), where("status", "==", "pending"))
+        );
+        const requests = [];
+        snap.forEach(d => { pendingMap.set(d.id, d.data()); requests.push({ id: d.id, ...d.data() }); });
+        renderPendingRequests(requests);
+      } catch (err) { console.error("Error loading requests:", err); }
+    }
+
+    function renderPendingRequests(requests) {
+      const badge = document.getElementById("pendingBadge");
+      const list  = document.getElementById("pendingList");
+
+      badge.textContent = requests.length;
+      badge.classList.toggle("hidden", requests.length === 0);
+
+      if (requests.length === 0) {
+        list.innerHTML = '<p class="no-pending">No pending requests.</p>';
+        return;
       }
+
+      list.innerHTML = requests.map(r => `
+        <div class="request-card" data-id="${r.id}">
+          <div class="request-meta">
+            <strong>${r.volunteerName}</strong> — ${r.volunteerEmail}<br>
+            Shift: <strong>${r.meetingName}</strong> on ${fmtDate(r.date)} at ${fmtTime(r.time)}
+          </div>
+          <div class="request-actions">
+            <button class="btn admin-btn approve-btn">✓ Approve</button>
+            <button class="btn btn-danger reject-toggle-btn">✗ Reject</button>
+            <div class="reject-expand">
+              <textarea placeholder="Optional reason for rejection (included in email to volunteer)"></textarea>
+              <button class="btn btn-danger confirm-reject-btn">Send Rejection</button>
+            </div>
+          </div>
+        </div>
+      `).join("");
+
+      list.querySelectorAll(".request-card").forEach(card => {
+        const id = card.dataset.id;
+        card.querySelector(".approve-btn").addEventListener("click", () => handleApprove(id));
+        card.querySelector(".reject-toggle-btn").addEventListener("click", () => {
+          card.querySelector(".reject-expand").style.display = "block";
+        });
+        card.querySelector(".confirm-reject-btn").addEventListener("click", () =>
+          handleReject(id, card.querySelector("textarea").value.trim()));
+      });
+    }
+
+    async function handleApprove(reqId) {
+      const req = pendingMap.get(reqId);
+      if (!req) return;
+      try {
+        await addDoc(collection(db, "meetings"), {
+          date: req.date, time: req.time,
+          meetingName: req.meetingName, chairName: req.volunteerName,
+          updatedBy: auth.currentUser.uid
+        });
+        await updateDoc(doc(db, "requests", reqId), {
+          status: "approved", reviewedAt: serverTimestamp()
+        });
+        if (EMAILJS_PUBLIC_KEY !== "YOUR_PUBLIC_KEY") {
+          await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_REPLY_TEMPLATE, {
+            volunteer_name:  req.volunteerName,
+            volunteer_email: req.volunteerEmail,
+            decision:        "approved",
+            meeting_name:    req.meetingName,
+            meeting_date:    fmtDate(req.date),
+            rejection_note:  ""
+          });
+        }
+        await Promise.all([loadPendingRequests(), initAdminCalendar(lastViewedDate)]);
+      } catch (err) { alert("Error approving request: " + err.message); }
+    }
+
+    async function handleReject(reqId, note) {
+      const req = pendingMap.get(reqId);
+      if (!req) return;
+      try {
+        await updateDoc(doc(db, "requests", reqId), {
+          status: "rejected", rejectionNote: note, reviewedAt: serverTimestamp()
+        });
+        if (EMAILJS_PUBLIC_KEY !== "YOUR_PUBLIC_KEY") {
+          await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_REPLY_TEMPLATE, {
+            volunteer_name:  req.volunteerName,
+            volunteer_email: req.volunteerEmail,
+            decision:        "rejected",
+            meeting_name:    req.meetingName,
+            meeting_date:    fmtDate(req.date),
+            rejection_note:  note || "(no reason provided)"
+          });
+        }
+        await loadPendingRequests();
+      } catch (err) { alert("Error rejecting request: " + err.message); }
     }
   </script>
 </body>

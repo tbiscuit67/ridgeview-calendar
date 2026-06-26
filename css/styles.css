@@ -156,6 +156,196 @@ h1 { font-size: 24px; }
   margin-top: 4px;
 }
 
+/* ============================
+   REQUEST PILL & BANNER
+   ============================ */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.request-pill-btn {
+  background: #27ae60;
+  color: white;
+  transition: background 0.2s;
+}
+.request-pill-btn:hover { background: #219a52; }
+
+.request-banner {
+  background: #e8f4fd;
+  border: 1px solid #b3d7f0;
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 14px;
+  color: #1d5c85;
+  gap: 10px;
+}
+.request-banner.hidden { display: none; }
+.request-banner button {
+  background: none;
+  border: none;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  color: #1d5c85;
+  padding: 0 4px;
+  flex-shrink: 0;
+}
+
+/* ============================
+   REQUEST MODAL
+   ============================ */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+}
+.modal-overlay.hidden { display: none; }
+
+.modal-card {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  width: 100%;
+  max-width: 440px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+}
+
+.modal-card h3 {
+  margin: 0 0 4px;
+  color: var(--color-heading);
+  font-size: 18px;
+}
+
+.modal-shift-info {
+  background: #f0f4f8;
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin: 10px 0 18px;
+  font-size: 14px;
+  color: #444;
+  font-weight: bold;
+}
+
+.modal-card label {
+  display: block;
+  font-size: 13px;
+  font-weight: bold;
+  color: #555;
+  margin-bottom: 14px;
+}
+
+.modal-card input {
+  display: block;
+  width: 100%;
+  padding: 10px 12px;
+  margin-top: 5px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 15px;
+}
+
+.modal-card input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px rgba(52, 73, 94, 0.15);
+}
+
+.modal-buttons {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+  justify-content: flex-end;
+}
+
+/* ============================
+   PENDING REQUESTS (admin)
+   ============================ */
+.pending-section {
+  margin-bottom: 28px;
+  padding-bottom: 20px;
+  border-bottom: 2px solid var(--color-border);
+}
+
+.pending-section-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.pending-section-header h3 { margin: 0; color: var(--color-heading); }
+
+.badge {
+  background: #e74c3c;
+  color: white;
+  font-size: 11px;
+  font-weight: bold;
+  border-radius: 12px;
+  padding: 2px 8px;
+}
+
+.request-card {
+  border: 1px solid var(--color-border);
+  border-left: 4px solid #fbc02d;
+  border-radius: 8px;
+  padding: 14px 16px;
+  margin-bottom: 10px;
+  background: #fffde7;
+}
+
+.request-meta {
+  font-size: 14px;
+  margin-bottom: 10px;
+  line-height: 1.8;
+}
+.request-meta strong { color: var(--color-heading); }
+
+.request-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
+.reject-expand {
+  display: none;
+  width: 100%;
+  margin-top: 10px;
+}
+
+.reject-expand textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 13px;
+  resize: vertical;
+  min-height: 70px;
+  margin-bottom: 8px;
+  box-sizing: border-box;
+}
+
+.no-pending {
+  color: #888;
+  font-style: italic;
+  font-size: 14px;
+}
+
+/* ============================
+   Print title
+   ============================ */
 /* Print title — hidden on screen, shown only when printing */
 .print-title {
   display: none;

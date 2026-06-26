@@ -8,12 +8,21 @@
 <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
 <link rel="stylesheet" href="css/styles.css">
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 </head>
 <body>
   <div class="container">
     <div class="header">
       <h1>Ridgeview Institute — Recovery Meeting Chairs</h1>
-      <a href="admin.html" class="btn admin-btn">Editor Login</a>
+      <div class="header-actions">
+        <button id="requestPill" class="btn request-pill-btn">Request to Chair</button>
+        <a href="admin.html" class="btn admin-btn">Editor Login</a>
+      </div>
+    </div>
+
+    <div id="requestBanner" class="request-banner hidden">
+      <span>Tap or click any <strong>open (gray)</strong> shift on the calendar to submit a chair request.</span>
+      <button id="dismissBanner" aria-label="Dismiss">&#215;</button>
     </div>
 
     <div class="print-title">Ridgeview Alumni Meeting Calendar</div>
@@ -32,6 +41,24 @@
     </div>
   </div>
 
+  <!-- Request modal -->
+  <div id="requestModal" class="modal-overlay hidden">
+    <div class="modal-card">
+      <h3>Request to Chair</h3>
+      <div id="modalShiftInfo" class="modal-shift-info"></div>
+      <label>Your Name
+        <input type="text" id="reqName" placeholder="Full name" autocomplete="name">
+      </label>
+      <label>Your Email <span style="font-weight:normal;color:#888">(we'll reply here)</span>
+        <input type="email" id="reqEmail" placeholder="your@email.com" autocomplete="email">
+      </label>
+      <div class="modal-buttons">
+        <button id="reqCancel" class="btn btn-secondary">Cancel</button>
+        <button id="reqSubmit" class="btn admin-btn">Submit Request</button>
+      </div>
+    </div>
+  </div>
+
   <div class="scroll-hint" id="scrollHint">&#8595; scroll for more</div>
 
   <script>
@@ -44,31 +71,137 @@
 
   <script type="module">
     import { db } from "./js/firebase-config.js";
+    import { addDoc, collection, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
     import { fetchClaimedShifts, generateEvents, BASE_CALENDAR_OPTIONS } from "./js/schedule.js";
 
+    // ── EmailJS Configuration ────────────────────────────────────────────
+    // 1. Sign up free at https://emailjs.com
+    // 2. Connect your Gmail as a service → paste the Service ID below
+    // 3. Create an "admin_notification" template with variables:
+    //      admin_email, volunteer_name, volunteer_email,
+    //      meeting_name, meeting_date, meeting_time, admin_url
+    //    Then paste its Template ID below
+    // 4. Copy your Public Key from Account › API Keys
+    const EMAILJS_PUBLIC_KEY     = "YOUR_PUBLIC_KEY";        // ← replace
+    const EMAILJS_SERVICE_ID     = "YOUR_SERVICE_ID";        // ← replace
+    const EMAILJS_ADMIN_TEMPLATE = "YOUR_ADMIN_TEMPLATE_ID"; // ← replace
+    const ADMIN_EMAIL   = "tom.nichols@gmail.com";
+    const ADMIN_EMAIL_2 = ""; // optional second admin email
+
+    if (EMAILJS_PUBLIC_KEY !== "YOUR_PUBLIC_KEY") emailjs.init(EMAILJS_PUBLIC_KEY);
+
+    // ── Colors ───────────────────────────────────────────────────────────
     const OPEN_COLORS = {
-      openBg: "#eceff1",
-      openText: "#607d8b",
-      claimedBg: "#e8f5e9",
-      claimedText: "#2e7d32"
+      openBg: "#eceff1", openText: "#607d8b",
+      claimedBg: "#e8f5e9", claimedText: "#2e7d32"
     };
 
-    document.addEventListener("DOMContentLoaded", async () => {
-      const calendarEl = document.getElementById("calendar");
+    // ── Helpers ───────────────────────────────────────────────────────────
+    function formatDate(dateStr) {
+      return new Date(dateStr + "T12:00:00").toLocaleDateString("en-US",
+        { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+    }
+    function formatTime(timeStr) {
+      const [h, m] = timeStr.split(":");
+      return new Date(0, 0, 0, +h, +m).toLocaleTimeString("en-US",
+        { hour: "numeric", minute: "2-digit" });
+    }
+
+    // ── Modal ─────────────────────────────────────────────────────────────
+    const modal        = document.getElementById("requestModal");
+    const modalInfo    = document.getElementById("modalShiftInfo");
+    const reqName      = document.getElementById("reqName");
+    const reqEmail     = document.getElementById("reqEmail");
+    const reqSubmitBtn = document.getElementById("reqSubmit");
+    let pendingShift   = null;
+
+    function openModal(props) {
+      pendingShift = props;
+      modalInfo.textContent =
+        `${props.meetingName} — ${formatDate(props.dateStr)} at ${formatTime(props.timeStr)}`;
+      reqName.value = "";
+      reqEmail.value = "";
+      reqSubmitBtn.disabled = false;
+      reqSubmitBtn.textContent = "Submit Request";
+      modal.classList.remove("hidden");
+      setTimeout(() => reqName.focus(), 50);
+    }
+
+    document.getElementById("reqCancel").addEventListener("click", () =>
+      modal.classList.add("hidden"));
+    modal.addEventListener("click", e => {
+      if (e.target === modal) modal.classList.add("hidden");
+    });
+
+    reqSubmitBtn.addEventListener("click", async () => {
+      const name  = reqName.value.trim();
+      const email = reqEmail.value.trim();
+      if (!name)               { reqName.focus();  return; }
+      if (!email.includes("@")) { reqEmail.focus(); return; }
+
+      reqSubmitBtn.disabled    = true;
+      reqSubmitBtn.textContent = "Submitting…";
 
       try {
-        const claimedShifts = await fetchClaimedShifts(db);
-
-        const calendar = new FullCalendar.Calendar(calendarEl, {
-          ...BASE_CALENDAR_OPTIONS,
-          events: (fetchInfo, successCallback) => {
-            successCallback(generateEvents(fetchInfo, claimedShifts, OPEN_COLORS));
-          }
+        await addDoc(collection(db, "requests"), {
+          date:           pendingShift.dateStr,
+          time:           pendingShift.timeStr,
+          meetingName:    pendingShift.meetingName,
+          volunteerName:  name,
+          volunteerEmail: email,
+          status:         "pending",
+          submittedAt:    serverTimestamp()
         });
 
+        if (EMAILJS_PUBLIC_KEY !== "YOUR_PUBLIC_KEY") {
+          const params = {
+            admin_email:     ADMIN_EMAIL,
+            volunteer_name:  name,
+            volunteer_email: email,
+            meeting_name:    pendingShift.meetingName,
+            meeting_date:    formatDate(pendingShift.dateStr),
+            meeting_time:    formatTime(pendingShift.timeStr),
+            admin_url:       location.href.replace("index.html", "") + "admin.html"
+          };
+          await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_ADMIN_TEMPLATE, params);
+          if (ADMIN_EMAIL_2)
+            await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_ADMIN_TEMPLATE,
+              { ...params, admin_email: ADMIN_EMAIL_2 });
+        }
+
+        modal.classList.add("hidden");
+        alert(`Request submitted! You'll receive a confirmation email at ${email} once it's reviewed.`);
+      } catch (err) {
+        console.error(err);
+        alert("Something went wrong — please try again.");
+        reqSubmitBtn.disabled    = false;
+        reqSubmitBtn.textContent = "Submit Request";
+      }
+    });
+
+    // ── Pill & banner ─────────────────────────────────────────────────────
+    document.getElementById("requestPill").addEventListener("click", () =>
+      document.getElementById("requestBanner").classList.remove("hidden"));
+    document.getElementById("dismissBanner").addEventListener("click", () =>
+      document.getElementById("requestBanner").classList.add("hidden"));
+
+    // ── Calendar ──────────────────────────────────────────────────────────
+    document.addEventListener("DOMContentLoaded", async () => {
+      const calendarEl = document.getElementById("calendar");
+      try {
+        const claimedShifts = await fetchClaimedShifts(db);
+        const calendar = new FullCalendar.Calendar(calendarEl, {
+          ...BASE_CALENDAR_OPTIONS,
+          events: (fetchInfo, successCallback) =>
+            successCallback(generateEvents(fetchInfo, claimedShifts, OPEN_COLORS)),
+          eventClick(info) {
+            if (info.event.extendedProps.isTemplate)
+              openModal(info.event.extendedProps);
+          }
+        });
         calendar.render();
-      } catch (error) {
-        console.error("Error loading the volunteer schedule:", error);
+      } catch (err) {
+        console.error(err);
         calendarEl.textContent = "Sorry, the schedule couldn't be loaded right now. Please try again later.";
       }
     });
