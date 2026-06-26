@@ -208,6 +208,14 @@ h1 { font-size: 24px; }
 
   #calendar, .legend-row { width: 100% !important; }
 
+  /* Force FullCalendar's internal tables to fill the full page width */
+  .fc-scrollgrid,
+  .fc-scrollgrid table,
+  .fc-daygrid-body,
+  .fc-daygrid-body table {
+    width: 100% !important;
+  }
+
   /* Scale up calendar text to fill the page */
   .fc { font-size: 11pt !important; }
   .fc-col-header-cell { font-size: 11pt !important; }
