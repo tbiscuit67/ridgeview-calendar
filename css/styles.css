@@ -1,0 +1,201 @@
+/* styles.css
+   Shared styles for index.html and admin.html. Previously each page
+   carried its own near-identical <style> block; this consolidates them
+   so a visual change only needs to happen in one place. */
+
+:root {
+  --color-bg: #f8f9fa;
+  --color-card: #ffffff;
+  --color-border: #eaeaea;
+  --color-heading: #1a252f;
+  --color-primary: #34495e;
+  --color-primary-hover: #2c3e50;
+  --legend-bg: #fffde7;
+  --legend-border: #fbc02d;
+  --legend-text: #5d4037;
+  --first-friday: #e74c3c;
+  --other-month-bg: #d0d7dc;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  margin: 0;
+  padding: 20px;
+  background-color: var(--color-bg);
+  color: #333;
+}
+
+.container {
+  max-width: 1100px;
+  margin: 0 auto;
+  background: var(--color-card);
+  padding: 30px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 25px;
+  border-bottom: 2px solid var(--color-border);
+  padding-bottom: 15px;
+}
+
+h1, h2 { margin: 0; color: var(--color-heading); }
+h1 { font-size: 24px; }
+
+/* Buttons */
+.btn {
+  display: inline-block;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 14px;
+  text-decoration: none;
+}
+.admin-btn { background-color: var(--color-primary); color: white; transition: background 0.2s; }
+.admin-btn:hover { background-color: var(--color-primary-hover); }
+.btn-secondary { background-color: #ddd; color: #333; margin-right: 10px; }
+.btn-danger { background-color: #e74c3c; color: white; }
+
+/* Login card */
+.auth-card {
+  max-width: 400px;
+  margin: 100px auto;
+  background: var(--color-card);
+  padding: 30px;
+  border-radius: 8px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+.auth-card input {
+  width: 100%;
+  padding: 10px;
+  margin: 10px 0;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+.auth-card button {
+  width: 100%;
+  background: #27ae60;
+  color: white;
+  border: none;
+  padding: 12px;
+  font-size: 16px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.hidden { display: none !important; }
+
+.instructions {
+  background: #e8f4fd;
+  color: #1d6fa5;
+  padding: 12px;
+  border-radius: 6px;
+  margin-bottom: 20px;
+  font-size: 14px;
+}
+
+/* FullCalendar event styling */
+.fc-event {
+  cursor: pointer;
+  padding: 4px 6px;
+  font-size: 13px;
+  border-radius: 4px;
+  font-weight: bold !important;
+  border: 1px solid rgba(0, 0, 0, 0.05) !important;
+}
+.fc-event-title { white-space: normal !important; overflow-wrap: break-word; }
+
+.fc-daygrid-day.fc-day-other { background-color: var(--other-month-bg) !important; }
+.fc .fc-daygrid-day.fc-day-other a.fc-daygrid-day-number { color: #0b3d3b !important; }
+#calendar .fc-daygrid-day.fc-day-other .fc-event { opacity: 0.9; }
+#calendar .fc-daygrid-day.fc-day-other:hover { background-color: #c9d1d6 !important; }
+
+.first-friday-marker {
+  color: var(--first-friday);
+  font-size: 10px;
+  font-weight: bold;
+  padding: 2px 5px 0;
+  float: left;
+}
+.fc-daygrid-day-top--with-marker {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+}
+
+/* Static weekday legend row beneath the calendar */
+.legend-row {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  margin-top: 20px;
+}
+.legend-cell {
+  background-color: var(--legend-bg);
+  border: 1px solid var(--legend-border);
+  padding: 12px 8px;
+  font-weight: bold;
+  font-size: 12px;
+  color: var(--legend-text);
+  line-height: 1.5;
+  border-radius: 6px;
+  min-height: 80px;
+}
+.legend-cell-first-fri {
+  color: var(--first-friday);
+  font-size: 10px;
+  display: block;
+  margin-top: 4px;
+}
+
+/* ============================
+   PRINT STYLES (both pages)
+   ============================
+   Previously only admin.html had a print stylesheet, so printing the
+   public page produced the full app chrome (login link, shadows, etc.)
+   with no print-specific layout at all. This block now covers both
+   pages, and works together with dayMaxEvents:false in schedule.js so
+   a day with 3 shifts prints all 3 instead of a "+2 more" link. */
+@media print {
+  @page { size: landscape; margin: 0.4in; }
+
+  body { background: white !important; padding: 0; }
+
+  .container {
+    box-shadow: none !important;
+    padding: 0 !important;
+    max-width: 100% !important;
+  }
+
+  /* Nothing on either page needs to be interactive on paper */
+  .auth-card,
+  .instructions,
+  .btn,
+  #logoutBtn {
+    display: none !important;
+  }
+
+  #calendar, .legend-row { width: 100% !important; }
+
+  /* Force background colors (open/claimed shift colors, legend, etc.)
+     to actually show up on paper instead of being stripped by the
+     browser's default print rendering. */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Keep a week row, an individual shift, or a legend cell from being
+     sliced across a page break. */
+  .fc-daygrid-day, .fc-event, .legend-cell {
+    page-break-inside: avoid;
+  }
+}
