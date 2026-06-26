@@ -129,6 +129,7 @@ const isMobile = () => window.innerWidth < 768;
 // Shared FullCalendar configuration used by both pages.
 export const BASE_CALENDAR_OPTIONS = {
   initialView: isMobile() ? "listMonth" : "dayGridMonth",
+  height: isMobile() ? "auto" : undefined,
   displayEventTime: false,
   eventDisplay: "block",
   dayMaxEvents: false,
@@ -136,12 +137,14 @@ export const BASE_CALENDAR_OPTIONS = {
     ? { left: "prev,next today", center: "title", right: "listMonth,listWeek" }
     : { left: "prev,next today", center: "title", right: "dayGridMonth,timeGridWeek" },
   views: {
-    listMonth: { displayEventTime: true, buttonText: "Month list", height: "auto" },
-    listWeek:  { displayEventTime: true, buttonText: "Week list",  height: "auto" }
+    listMonth: { displayEventTime: true, buttonText: "Month list" },
+    listWeek:  { displayEventTime: true, buttonText: "Week list" }
   },
   windowResize() {
-    this.changeView(isMobile() ? "listMonth" : "dayGridMonth");
-    this.setOption("headerToolbar", isMobile()
+    const mobile = isMobile();
+    this.changeView(mobile ? "listMonth" : "dayGridMonth");
+    this.setOption("height", mobile ? "auto" : undefined);
+    this.setOption("headerToolbar", mobile
       ? { left: "prev,next today", center: "title", right: "listMonth,listWeek" }
       : { left: "prev,next today", center: "title", right: "dayGridMonth,timeGridWeek" }
     );
