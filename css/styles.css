@@ -182,10 +182,11 @@ h1 { font-size: 24px; }
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 18px;
+  font-size: 18px !important;
   color: #1d5c85;
   gap: 10px;
 }
+.request-banner span { font-size: 18px !important; }
 .request-banner.hidden { display: none; }
 .request-banner button {
   background: none;
