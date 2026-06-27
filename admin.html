@@ -259,14 +259,16 @@
           status: "approved", reviewedAt: serverTimestamp()
         });
         if (EMAILJS_PUBLIC_KEY !== "YOUR_PUBLIC_KEY") {
-          await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_REPLY_TEMPLATE, {
+          const params = {
             volunteer_name:  req.volunteerName,
             volunteer_email: req.volunteerEmail,
             decision:        "approved",
             meeting_name:    req.meetingName,
             meeting_date:    fmtDate(req.date),
             rejection_note:  ""
-          });
+          };
+          console.log("EmailJS approve params:", JSON.stringify(params));
+          await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_REPLY_TEMPLATE, params);
         }
         await Promise.all([loadPendingRequests(), initAdminCalendar(lastViewedDate)]);
       } catch (err) { alert("Error approving request: " + err.message); }
